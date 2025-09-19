@@ -9,7 +9,7 @@ LUCI_PKGARCH:=all
 PKG_MAINTAINER:=miaogongzi <miaogongzi0227@gmail.com>
 
 LUCI_TITLE:=LuCI: IKEv2 (strongSwan) PSK visual config
-LUCI_DEPENDS:=+luci-base +luci-compat +strongswan-full +kmod-ipt-ipsec +iptables-mod-ipsec +dnsmasq-full +firewall
+LUCI_DEPENDS:=+luci-base +luci-compat +strongswan-full +kmod-ipt-ipsec +iptables-mod-ipsec +dnsmasq-full
 # LUCI_PKGARCH: default to 'all' for non-binary packages (from luci.mk)
 
 define Package/$(PKG_NAME)/conffiles
