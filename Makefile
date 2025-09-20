@@ -23,8 +23,8 @@ LUCI_DEPENDS:= \
   +PACKAGE_firewall:firewall +PACKAGE_firewall4:firewall4 \
   +PACKAGE_firewall:kmod-ipt-ipsec +PACKAGE_firewall:iptables-mod-ipsec \
   +strongswan-minimal \
-  +strongswan-mod-kernel-libipsec 
-  +kmod-tun
+  +strongswan-mod-kernel-libipsec \
+  +kmod-tun \
   +dnsmasq-full
 
 define Package/$(PKG_NAME)/conffiles
