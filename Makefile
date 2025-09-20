@@ -2,8 +2,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-ipsec-ikev2
-PKG_VERSION:=2025.09.20
-PKG_RELEASE:=1
+PKG_VERSION:=2025.09.21
+PKG_RELEASE:=$(AUTORELEASE)
 PKG_MAINTAINER:=miaogongzi <miaogongzi0227@gmail.com>
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
