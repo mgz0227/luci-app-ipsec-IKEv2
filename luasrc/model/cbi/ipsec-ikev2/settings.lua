@@ -1,78 +1,64 @@
-local sys  = require "luci.sys"
-local uci  = require "luci.model.uci".cursor()
+local sys = require "luci.sys"
 
-m = Map("luci-app-ipsec-ikev2", translate("IPsec IKEv2 (strongSwan) - PSK"),
-    translate("提供 IKEv2（PSK，多身份）可视化配置。保存并应用后自动生成 swanctl.conf 并重载 strongSwan。"))
-m.apply_on_parse = true
+m = Map("luci-app-ipsec-ikev2", translate("IPSec VPN Server"))
+m.template = "ipsec-ikev2/ipsec-ikev2_status"
 
-s = m:section(TypedSection, "config", translate("全局设置"))
+s = m:section(TypedSection, "service")
 s.anonymous = true
 
-en = s:option(Flag, "enabled", translate("启用"))
-en.rmempty = false
-en.default = en.enabled
-
-listen = s:option(Value, "listen", translate("监听地址"), translate("留空=自动；可填 IPv4/IPv6 或 %any（通常监听在 WAN）。"))
-listen.placeholder = "%any"
-
-leftid = s:option(Value, "leftid", translate("服务端 ID (LeftID)"), translate("建议使用你的 VPN 域名或唯一标识，客户端“远程 ID/服务器 ID”需与之匹配。"))
-leftid.placeholder = "vpn.example.com"
-
-mode = s:option(ListValue, "mode", translate("业务模式"),
-    translate("全量出口=访问内网+经内网访问外网；仅内网=只访问内网；自定义=自行填写分流网段。"))
-mode:value("full", translate("全量出口（访问内网 + 经内网访问外网）"))
-mode:value("lan",  translate("仅内网访问"))
-mode:value("custom", translate("自定义"))
-mode.default = "full"
-
-global_psk = s:option(Value, "global_psk", translate("全局 PSK（可选）"), translate("填写后所有客户端可用该密钥；留空时仅允许“PSK 用户”表中身份。"))
-global_psk.password = true
-
-ikep = s:option(Value, "ike_proposals", translate("IKE 提议"))
-ikep.placeholder = "aes256-sha256-prfsha256-modp2048,aes256gcm16-prfsha256-modp2048"
-
-espp = s:option(Value, "esp_proposals", translate("ESP 提议"))
-espp.placeholder = "aes256-sha256-modp2048,aes256gcm16-modp2048"
-
-mobike = s:option(Flag, "mobike", translate("启用 MOBIKE"))
-mobike.default = mobike.enabled
-
-frag = s:option(Flag, "fragmentation", translate("启用 IKEv2 分片"))
-frag.default = frag.enabled
-
-dpd  = s:option(Value, "dpd_delay", translate("DPD 间隔 (秒)"))
-dpd.datatype = "uinteger"
-dpd.placeholder = "30"
-
-pool = s:option(ListValue, "pool", translate("地址池"))
-uci:foreach("luci-app-ipsec-ikev2", "pool", function(sec) pool:value(sec[".name"]) end)
-pool.rmempty = false
-
-dns = s:option(DynamicList, "dns", translate("推送 DNS 服务器"),
-    translate("为空则不下发；也可在地址池中单独设置。默认尝试使用路由器 LAN IP。"))
-dns.datatype = "ipaddr"
-
-split = s:option(DynamicList, "split_subnets", translate("内网分流网段（自定义模式）"),
-    translate("示例：192.168.1.0/24、10.0.0.0/8、::/0。"))
-split.datatype = "ipaddr"
-
-rekey = s:option(Value, "rekey_time", translate("ChildSA 重协商间隔 (秒)"))
-rekey.datatype = "uinteger"
-rekey.placeholder = "3600"
-
-start_action = s:option(ListValue, "start_action", translate("启动动作"))
-start_action:value("trap", "trap（按需建立）")
-start_action:value("start", "start（启动即建立）")
-start_action.default = "trap"
-
-ensure_masq = s:option(Flag, "ensure_wan_masq", translate("确保 WAN 出口 NAT (MASQUERADE)"))
-ensure_masq.default = ensure_masq.enabled
-
-function m.on_after_commit(self)
-    sys.call("/etc/init.d/luci-app-ipsec-ikev2 reload >/dev/null 2>&1")
+o = s:option(DummyValue, "ipsec-ikev2_status", translate("Current Condition"))
+o.rawhtml = true
+o.cfgvalue = function(t, n)
+	return '<font class="ipsec-ikev2_status"></font>'
 end
 
-local lan_ip = uci:get("network", "lan", "ipaddr")
-if lan_ip then dns:value(lan_ip) end
+enabled = s:option(Flag, "enabled", translate("Enable"))
+enabled.description = translate("Use a client that supports IPSec Xauth PSK (iOS or Android) to connect to this server.")
+enabled.default = 0
+enabled.rmempty = false
+
+clientip = s:option(Value, "clientip", translate("VPN Client IP"))
+clientip.description = translate("VPN Client reserved started IP addresses with the same subnet mask, such as: 192.168.100.10/24")
+clientip.datatype = "ip4addr"
+clientip.optional = false
+clientip.rmempty = false
+
+secret = s:option(Value, "secret", translate("Secret Pre-Shared Key"))
+secret.password = true
+
+if sys.call("command -v xl2tpd > /dev/null") == 0 then
+	o = s:option(DummyValue, "l2tp_status", "L2TP " .. translate("Current Condition"))
+	o.rawhtml = true
+	o.cfgvalue = function(t, n)
+		return '<font class="l2tp_status"></font>'
+	end
+
+	o = s:option(Flag, "l2tp_enable", "L2TP " .. translate("Enable"))
+	o.description = translate("Use a client that supports L2TP over IPSec PSK to connect to this server.")
+	o.default = 0
+	o.rmempty = false
+
+	o = s:option(Value, "l2tp_localip", "L2TP " .. translate("Server IP"))
+	o.description = translate("VPN Server IP address, such as: 192.168.101.1")
+	o.datatype = "ip4addr"
+	o.rmempty = true
+	o.default = "192.168.101.1"
+	o.placeholder = o.default
+
+	o = s:option(Value, "l2tp_remoteip", "L2TP " .. translate("Client IP"))
+	o.description = translate("VPN Client IP address range, such as: 192.168.101.10-20")
+	o.rmempty = true
+	o.default = "192.168.101.10-20"
+	o.placeholder = o.default
+
+	if sys.call("ls -L /usr/lib/ipsec/libipsec* 2>/dev/null >/dev/null") == 0 then 
+		o = s:option(DummyValue, "_o", " ")
+		o.rawhtml = true
+		o.cfgvalue = function(t, n)
+			return string.format('<a style="color: red">%s</a>', translate("L2TP/IPSec is not compatible with kernel-libipsec, which will disable this module."))
+		end
+		o:depends("l2tp_enable", true)
+	end
+end
 
 return m

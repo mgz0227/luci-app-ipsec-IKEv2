@@ -1,90 +1,25 @@
-# SPDX-License-Identifier: MIT
+# Copyright (C) 2018-2021 Lienol <lawlienol@gmail.com>
+#
+# This is free software, licensed under the Apache License, Version 2.0 .
+#
+
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-ipsec-ikev2
-PKG_VERSION:=20250921
-PKG_RELEASE:=$(AUTORELEASE)
-PKG_MAINTAINER:=miaogongzi <miaogongzi0227@gmail.com>
+PKG_VERSION:=20211223
+PKG_RELEASE:=10
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
+PKG_MAINTAINER:=miaogongzi 
 
-# 依赖 po2lmo (与 OpenClash 一致，使用 tools/po2lmo)
-PKG_BUILD_DEPENDS:=po2lmo/host
+LUCI_TITLE:=LuCI support for IPSec VPN ikev2 Server
+LUCI_DEPENDS:=+kmod-tun +luci-lib-jsonc +strongswan +strongswan-minimal +strongswan-mod-kernel-libipsec +strongswan-mod-openssl +strongswan-mod-xauth-generic +xl2tpd
+LUCI_PKGARCH:=all
 
-include $(INCLUDE_DIR)/package.mk
-
-define Package/$(PKG_NAME)/config
-	# strongSwan backend 选择
-	config PACKAGE_strongswan-full
-		bool "Use strongSwan full"
-		default y if PACKAGE_$(PKG_NAME)
-
-	config PACKAGE_strongswan
-		bool "Use strongSwan minimal"
-		depends on PACKAGE_$(PKG_NAME)
-		depends on !PACKAGE_strongswan-full
-		default n
-
-
-
-	# 默认 dnsmasq-full
-	config PACKAGE_dnsmasq-full
-		bool "Use dnsmasq-full"
-		default y if PACKAGE_$(PKG_NAME)
-endef
-
-define Package/$(PKG_NAME)
-  CATEGORY:=LuCI
-  SUBMENU:=3. Applications
-  TITLE:=LuCI: IPsec IKEv2 (strongSwan) Server
-  PKGARCH:=all
-  DEPENDS:= \
-    +luci-compat \
-    +PACKAGE_dnsmasq-full:dnsmasq-full \
-    +PACKAGE_strongswan-full:strongswan-full \
-    +kmod-tun
-  MAINTAINER:=$(PKG_MAINTAINER)
-endef
-
-define Package/$(PKG_NAME)/description
-This LuCI application provides a web interface to manage
-IPsec IKEv2 VPN server (strongSwan). It supports:
- - PSK multi-identity
- - Address pool management
- - Diagnostics and status
- - Automatic firewall rules
- - NAT detection and handling
-endef
-
-define Build/Prepare
-	$(CP) $(CURDIR)/root $(PKG_BUILD_DIR)/
-	$(CP) $(CURDIR)/luasrc $(PKG_BUILD_DIR)/
-	$(foreach po,$(wildcard $(CURDIR)/po/zh_Hans/*.po), \
-		$(STAGING_DIR_HOST)/bin/po2lmo $(po) \
-			$(PKG_BUILD_DIR)/$(patsubst %.po,%.lmo,$(notdir $(po)));)
-	chmod 0755 $(PKG_BUILD_DIR)/root/etc/init.d/luci-app-ipsec-ikev2
-	chmod 0755 $(PKG_BUILD_DIR)/root/etc/uci-defaults/luci-app-ipsec-ikev2
-	chmod 0755 $(PKG_BUILD_DIR)/root/usr/libexec/ipsec-ikev2/genconfig.sh
-endef
-
-define Build/Configure
-endef
-
-define Build/Compile
-endef
-
-# 只保留应用自身的配置文件
 define Package/$(PKG_NAME)/conffiles
 /etc/config/luci-app-ipsec-ikev2
 endef
 
-define Package/$(PKG_NAME)/install
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
-	@if [ -n "$$(wildcard $(PKG_BUILD_DIR)/*.lmo)" ]; then \
-		$(INSTALL_DATA) $(PKG_BUILD_DIR)/*.lmo $(1)/usr/lib/lua/luci/i18n/; \
-	fi
-	$(CP) $(PKG_BUILD_DIR)/root/* $(1)/
-	$(CP) $(PKG_BUILD_DIR)/luasrc/* $(1)/usr/lib/lua/luci/
-endef
+include $(TOPDIR)/feeds/luci/luci.mk
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
+# call BuildPackage - OpenWrt buildroot signature
